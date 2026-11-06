@@ -1,0 +1,24 @@
+{
+  "name": "demoqa",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test:textbox": "playwright test tests/text-box.spec.ts --project=chromium",
+    "report:textbox": "playwright show-report reports/html",
+    "report:build": "node scripts/build-report.mjs",
+    "report:open": "open reports/dashboard/index.html",
+    "report:check": "node --test scripts/build-report.test.mjs",
+    "test:ui": "playwright test --project=chromium --grep \"UI-[A-Z]+-[0-9]+\"",
+    "test:api": "node scripts/run-api.mjs"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "@playwright/test": "^1.63.0",
+    "@types/node": "^26.6.3",
+    "newman": "^6.2.2"
+  }
+}

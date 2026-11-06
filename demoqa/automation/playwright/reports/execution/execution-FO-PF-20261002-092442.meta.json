@@ -1,0 +1,18 @@
+{
+  "runId": "FO-PF-20261002-092442",
+  "purpose": "normal",
+  "timezone": "Asia/Manila",
+  "playwrightVersion": "1.63.0",
+  "workers": 2,
+  "projects": [
+    "chromium"
+  ],
+  "baseURL": "https://demoqa.com",
+  "retries": 1,
+  "command": "playwright test tests/practice-form.spec.ts --project=chromium",
+  "htmlReport": "reports/html/FO-PF-20261002-092442/index.html",
+  "evidenceDir": "reports/evidence/FO-PF-20261002-092442",
+  "startTime": "2026-10-02T01:24:43.773Z",
+  "wallClockMs": 49387,
+  "status": "failed"
+}

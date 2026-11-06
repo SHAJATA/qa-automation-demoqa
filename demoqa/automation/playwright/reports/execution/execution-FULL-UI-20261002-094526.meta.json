@@ -1,0 +1,18 @@
+{
+  "runId": "FULL-UI-20261002-094526",
+  "purpose": "normal",
+  "timezone": "Asia/Manila",
+  "playwrightVersion": "1.63.0",
+  "workers": 2,
+  "projects": [
+    "chromium"
+  ],
+  "baseURL": "https://demoqa.com",
+  "retries": 1,
+  "command": "playwright test --project=chromium --grep UI-[A-Z]+-[0-9]+",
+  "htmlReport": "reports/html/FULL-UI-20261002-094526/index.html",
+  "evidenceDir": "reports/evidence/FULL-UI-20261002-094526",
+  "startTime": "2026-10-02T01:45:27.074Z",
+  "wallClockMs": 295596,
+  "status": "failed"
+}

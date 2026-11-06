@@ -1,0 +1,18 @@
+{
+  "runId": "AFW-20261002-092913",
+  "purpose": "normal",
+  "timezone": "Asia/Manila",
+  "playwrightVersion": "1.63.0",
+  "workers": 2,
+  "projects": [
+    "chromium"
+  ],
+  "baseURL": "https://demoqa.com",
+  "retries": 1,
+  "command": "playwright test tests/browser-windows.spec.ts tests/alerts.spec.ts tests/frames.spec.ts tests/nested-frames.spec.ts tests/modal-dialogs.spec.ts --project=chromium",
+  "htmlReport": "reports/html/AFW-20261002-092913/index.html",
+  "evidenceDir": "reports/evidence/AFW-20261002-092913",
+  "startTime": "2026-10-02T01:29:14.998Z",
+  "wallClockMs": 49455,
+  "status": "passed"
+}

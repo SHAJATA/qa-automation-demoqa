@@ -1,0 +1,530 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DemoQA QA Report</title>
+<style>
+:root {
+  --bg: #f6f7f9; --surface: #ffffff; --surface-2: #f0f2f5; --text: #1b1f24; --muted: #5b6470; --border: #dde1e6;
+  --accent: #2456c8; --accent-soft: #e6edfb;
+  --passed: #2e7d4f; --flaky: #b8730a; --failed: #c23b32; --interrupted: #7a4bb5; --skipped: #7d8590; --notrun: #9aa5b8;
+  --shadow: 0 1px 2px rgba(16,24,40,.06), 0 1px 3px rgba(16,24,40,.08);
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f1216; --surface: #171b21; --surface-2: #1f242c; --text: #e6e9ee; --muted: #9aa3ae; --border: #2c323b;
+  --accent: #7aa2ff; --accent-soft: #1d2a44;
+  --passed: #4cb47a; --flaky: #e0a23a; --failed: #ef6b62; --interrupted: #a985e0; --skipped: #8b939e; --notrun: #5d6880;
+  --shadow: none;
+} }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+header.top { background: var(--surface); border-bottom: 1px solid var(--border); padding: 16px 24px; display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: center; justify-content: space-between; }
+header.top h1 { margin: 0; font-size: 20px; }
+header.top .sub { color: var(--muted); font-size: 12px; }
+.controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; min-width: 0; max-width: 100%; }
+.controls select { max-width: 100%; min-width: 0; }
+nav.sections { position: sticky; top: 0; z-index: 5; background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 24px; display: flex; gap: 4px; overflow-x: auto; }
+nav.sections a { padding: 10px 12px; color: var(--muted); text-decoration: none; white-space: nowrap; border-bottom: 2px solid transparent; }
+nav.sections a:hover, nav.sections a:focus-visible { color: var(--text); border-bottom-color: var(--accent); }
+main { max-width: 1240px; margin: 0 auto; padding: 24px; }
+section { margin-bottom: 32px; scroll-margin-top: 56px; }
+h2 { font-size: 17px; margin: 0 0 12px; }
+a { color: var(--accent); }
+h3 { font-size: 14px; margin: 0 0 8px; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px; box-shadow: var(--shadow); }
+.grid { display: grid; gap: 12px; }
+.kpis { grid-template-columns: repeat(auto-fill, minmax(165px, 1fr)); }
+.kpi .label { color: var(--muted); font-size: 12px; }
+.kpi .value { font-size: 26px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.kpi .hint { color: var(--muted); font-size: 12px; }
+.kpi.bar-passed { border-top: 3px solid var(--passed); } .kpi.bar-flaky { border-top: 3px solid var(--flaky); }
+.kpi.bar-failed { border-top: 3px solid var(--failed); } .kpi.bar-skipped { border-top: 3px solid var(--skipped); }
+.kpi.bar-notrun { border-top: 3px solid var(--notrun); }
+.two { grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); }
+#chartsBody { grid-template-columns: repeat(auto-fit, minmax(min(100%, 480px), 1fr)); }
+.wide { grid-column: 1 / -1; }
+.grid > * { min-width: 0; } /* let wide tables scroll inside their card instead of stretching the page */
+#failuresBody .grid.two { grid-template-columns: 1fr; } /* full width for error text */
+dl.meta { display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; margin: 0; }
+dl.meta dt { color: var(--muted); } dl.meta dd { margin: 0; overflow-wrap: anywhere; }
+.nr { color: var(--muted); font-style: italic; }
+.note { background: var(--accent-soft); border-radius: 8px; padding: 10px 12px; margin: 12px 0 0; }
+button, select, input[type=search] { font: inherit; color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 6px 10px; }
+button { cursor: pointer; } button:hover { background: var(--surface-2); }
+button:focus-visible, select:focus-visible, input:focus-visible, a:focus-visible, .seg:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.chart svg { width: 100%; height: auto; display: block; }
+.seg { cursor: pointer; } .seg:hover { opacity: .8; }
+.o-passed { fill: var(--passed); } .o-flaky { fill: var(--flaky); } .o-failed { fill: var(--failed); }
+.o-interrupted { fill: var(--interrupted); } .o-skipped { fill: var(--skipped); } .o-notrun { fill: var(--notrun); }
+.axis { fill: var(--muted); font-size: 11px; } .chart-label { fill: var(--text); font-size: 12px; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 8px; font-size: 12px; }
+.legend button { border: 0; background: none; padding: 2px 0; display: inline-flex; gap: 6px; align-items: center; }
+.sw { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+.empty { color: var(--muted); border: 1px dashed var(--border); border-radius: 8px; padding: 24px; text-align: center; }
+.filters { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; align-items: center; }
+.filters input[type=search] { min-width: 220px; flex: 1; }
+.status-line { color: var(--muted); font-size: 12px; margin-bottom: 8px; }
+.table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; }
+th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+th { background: var(--surface-2); font-weight: 600; white-space: nowrap; position: sticky; top: 0; }
+th button { border: 0; background: none; padding: 0; font-weight: 600; }
+th[aria-sort="ascending"] button::after { content: " ▲"; font-size: 10px; } th[aria-sort="descending"] button::after { content: " ▼"; font-size: 10px; }
+td.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+tr.detail td { background: var(--surface-2); }
+.pill { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; color: #fff; white-space: nowrap; }
+.p-passed { background: var(--passed); } .p-flaky { background: var(--flaky); } .p-failed { background: var(--failed); }
+.p-interrupted { background: var(--interrupted); } .p-skipped { background: var(--skipped); } .p-notrun { background: var(--notrun); }
+.tag { font-size: 11px; color: var(--muted); border: 1px solid var(--border); border-radius: 4px; padding: 0 4px; margin-left: 4px; }
+pre.err { white-space: pre-wrap; overflow-wrap: anywhere; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 8px; margin: 4px 0; font-size: 12px; max-height: 240px; overflow: auto; }
+.attempts td, .attempts th { font-size: 13px; }
+ul.clean { margin: 0; padding-left: 18px; } ul.clean li { margin: 4px 0; }
+.badge-nr { display: inline-block; background: var(--surface-2); border: 1px solid var(--border); border-radius: 6px; padding: 2px 8px; font-weight: 600; }
+code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+@media (max-width: 640px) { main { padding: 16px; } header.top, nav.sections { padding-left: 16px; padding-right: 16px; } .two { grid-template-columns: 1fr; } }
+@media print {
+  nav.sections, .controls, .filters, .no-print, .expander { display: none !important; }
+  body { background: #fff; color: #000; } .card, .table-wrap { box-shadow: none; break-inside: avoid; }
+  section { break-inside: auto; } th { position: static; }
+  .pill { color: #000; border: 1px solid #000; background: none !important; }
+}
+</style>
+</head>
+<body>
+<header class="top">
+  <div>
+    <h1>DemoQA Automation QA Report</h1>
+    <div class="sub" id="generated"></div>
+  </div>
+  <div class="controls">
+    <label for="runSelect">Run</label>
+    <select id="runSelect"></select>
+    <button id="printBtn" type="button">Print</button>
+  </div>
+</header>
+<nav class="sections" aria-label="Report sections">
+  <a href="#summary">Execution summary</a><a href="#charts">Charts</a><a href="#results">Results</a>
+  <a href="#failures">Failures &amp; retries</a><a href="#coverage">Coverage &amp; assessment</a>
+</nav>
+<main>
+  <section id="summary"><h2>Execution summary</h2><div id="summaryBody"></div></section>
+  <section id="charts"><h2>Charts</h2><div class="grid two" id="chartsBody"></div></section>
+  <section id="results">
+    <h2>Detailed results</h2>
+    <div class="filters" role="search">
+      <label class="sr-only" for="q">Search</label>
+      <input type="search" id="q" placeholder="Search ID, name, error…">
+      <select id="f-outcome" aria-label="Outcome filter"></select>
+      <select id="f-area" aria-label="Feature area filter"></select>
+      <select id="f-module" aria-label="Module filter"></select>
+      <select id="f-layer" aria-label="Layer filter"></select>
+      <select id="f-browser" aria-label="Browser filter"></select>
+      <select id="f-priority" aria-label="Priority filter"></select>
+      <select id="f-category" aria-label="Scenario category filter"></select>
+      <button type="button" id="clearBtn">Clear filters</button>
+      <button type="button" id="exportBtn">Export filtered CSV</button>
+    </div>
+    <div class="status-line" id="tableStatus" aria-live="polite"></div>
+    <div class="table-wrap"><table id="resultsTable"><thead></thead><tbody></tbody></table></div>
+    <p class="status-line">Scenario categories are <strong>inferred</strong> from test-case names by keyword rules; cases matching no rule are “Uncategorized”. Duration is the sum of that test's attempts.</p>
+  </section>
+  <section id="failures"><h2>Failure and retry details</h2><div id="failuresBody"></div></section>
+  <section id="coverage"><h2>Coverage and QA assessment</h2><div id="coverageBody"></div></section>
+</main>
+<script id="data" type="application/json">/*__DATA__*/</script>
+<script>
+'use strict';
+const DATA = JSON.parse(document.getElementById('data').textContent);
+const NR = 'Not recorded';
+const OUTCOMES = ['passed', 'flaky', 'failed', 'interrupted', 'skipped', 'notrun'];
+const OUT_LABEL = { passed: 'Passed (1st attempt)', flaky: 'Flaky (passed on retry)', failed: 'Failed', interrupted: 'Interrupted', skipped: 'Skipped', notrun: 'Not run' };
+const COLS = [
+  ['caseId', 'Test Case ID'], ['title', 'Test name'], ['area', 'Area'], ['module', 'Module'], ['layer', 'Layer'], ['category', 'Scenario category'], ['priority', 'Priority'],
+  ['browser', 'Browser / tool'], ['outcome', 'Final outcome'], ['attemptCount', 'Attempts'], ['durationMs', 'Duration (ms)'],
+];
+
+// ---- safe DOM helpers: all data goes in as text nodes or attributes, never as HTML ----
+function el(tag, attrs, ...kids) {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs || {})) {
+    if (v == null || v === false) continue;
+    if (k === 'class') e.className = v; else if (k.startsWith('on')) e.addEventListener(k.slice(2), v); else e.setAttribute(k, v);
+  }
+  for (const k of kids.flat()) if (k != null && k !== false) e.append(k instanceof Node ? k : String(k));
+  return e;
+}
+const SVGNS = 'http://www.w3.org/2000/svg';
+function sv(tag, attrs, ...kids) {
+  const e = document.createElementNS(SVGNS, tag);
+  for (const [k, v] of Object.entries(attrs || {})) {
+    if (v == null) continue;
+    if (k.startsWith('on')) e.addEventListener(k.slice(2), v); else e.setAttribute(k, v);
+  }
+  for (const k of kids) if (k != null) e.append(k instanceof Node ? k : String(k));
+  return e;
+}
+const val = v => (v == null || v === '' ? el('span', { class: 'nr' }, NR) : String(v));
+const fmtMs = ms => (ms == null ? null : ms >= 1000 ? `${(ms / 1000).toFixed(1)} s` : `${ms} ms`);
+const pct = v => (v == null ? 'n/a' : `${(v * 100).toFixed(1)}%`);
+function fmtTime(iso, tz) {
+  if (!iso) return null;
+  const zone = tz || DATA.timezone;
+  return `${new Date(iso).toLocaleString('sv-SE', { timeZone: zone })} ${zone}` + (tz ? '' : ' (report-build timezone; run did not record its own)');
+}
+const pill = o => el('span', { class: `pill p-${o}` }, OUT_LABEL[o] || o);
+const fileLink = (p, ok, label) => !p ? el('span', { class: 'nr' }, 'Not captured')
+  : ok ? el('a', { href: '../../' + p, target: '_blank', rel: 'noopener' }, label)
+  : el('span', { class: 'nr' }, `${label} recorded but file missing: ${p}`);
+
+// ---- state ----
+const state = { run: null, q: '', f: { outcome: '', area: '', module: '', layer: '', browser: '', priority: '', category: '' }, sort: { key: 'caseId', dir: 1 }, open: new Set() };
+const runById = id => DATA.runs.find(r => r.runId === id);
+
+function rowsFor(run) {
+  if (!run) return [];
+  const def = new Map(DATA.cases.map(c => [c.caseId, c]));
+  return [
+    ...run.instances.map(i => ({ ...i, attemptCount: i.attempts.length, def: def.get(i.caseId) })),
+    ...run.notRun.map(n => ({ ...n, key: `notrun|${n.caseId}|${n.browser}`, outcome: 'notrun', tool: `Playwright (${n.browser})`, attempts: [], attemptCount: 0, durationMs: null, def: def.get(n.caseId) })),
+  ];
+}
+
+// ---- summary ----
+function kpi(label, value, hint, cls) {
+  return el('div', { class: `card kpi ${cls || ''}` }, el('div', { class: 'label' }, label), el('div', { class: 'value' }, value), hint ? el('div', { class: 'hint' }, hint) : null);
+}
+function renderSummary(run) {
+  const body = document.getElementById('summaryBody'); body.replaceChildren();
+  if (!run) { body.append(el('div', { class: 'empty' }, 'No execution results saved yet. Run the suite, then rebuild the report with: npm run report:build')); return; }
+  const c = run.counts, m = run.meta;
+  if (run.purpose !== 'normal') body.append(el('p', { class: 'note', style: 'margin:0 0 12px' }, el('strong', null, 'Reporting verification exercise. '), `Purpose: ${run.purpose}. Failures here were introduced on purpose to prove evidence capture. They are not product results.`));
+  body.append(el('div', { class: 'grid kpis' },
+    kpi('Designed cases in scope', run.designedInScope, `${run.modules.join(', ')}`),
+    kpi('Executed test instances', c.executed, `${c.uniqueExecutedCases} unique case(s) × ${run.browsers.length} browser(s); ${c.attempts} attempt(s) incl. retries`),
+    kpi('Passed on first attempt', c.passed, null, 'bar-passed'),
+    kpi('Passed after retry (flaky)', c.flaky, 'Counted separately from clean passes', 'bar-flaky'),
+    kpi('Final failures', c.failed + c.interrupted, c.interrupted ? `${c.interrupted} interrupted` : null, 'bar-failed'),
+    kpi('Skipped', c.skipped, 'Not counted as executed', 'bar-skipped'),
+    kpi('Designed but not run', c.notRun, 'Designed in this run\'s modules and browsers, no result. Not counted as executed. Blocked/excluded features are listed under Coverage', 'bar-notrun'),
+    kpi('Final pass rate', pct(c.passRate), `(first-attempt + flaky) ÷ ${c.executed} executed instances`),
+    kpi('First-attempt pass rate', pct(c.firstAttemptPassRate), `first-attempt passes ÷ ${c.executed} executed instances`),
+    kpi('Run wall-clock duration', fmtMs(m.wallClockMs) || NR, 'Elapsed time from start to end of the run'),
+    kpi('Sum of attempt durations', fmtMs(c.totalAttemptMs), `Tests ran in parallel (${m.workers ?? '?'} workers), so this is not elapsed time`),
+  ));
+  const src = { meta: 'Run metadata file saved by the reporter', html: 'Playwright HTML report (verified to match this run)', none: NR }[m.source];
+  body.append(el('div', { class: 'card', style: 'margin-top:12px' }, el('h3', null, 'Run details'), el('dl', { class: 'meta' },
+    el('dt', null, 'Run ID'), el('dd', null, run.runId),
+    el('dt', null, 'Started'), el('dd', null, val(fmtTime(m.startTime, m.timezone))),
+    el('dt', null, 'Scope'), el('dd', null, `${run.modules.join(', ')} module; ${run.browsers.join(', ')}`),
+    el('dt', null, 'Command'), el('dd', null, m.command ? el('code', null, m.command) : val(null)),
+    el('dt', null, 'Environment (baseURL)'), el('dd', null, val(m.baseURL)),
+    el('dt', null, 'Tool'), el('dd', null, m.tool ? m.tool : ['Playwright ', val(m.playwrightVersion)]),
+    ...(m.requests ? [el('dt', null, 'API requests'), el('dd', null, `${m.requests.executed} executed, ${m.requests.skipped} skipped`),
+      el('dt', null, 'API assertions'), el('dd', null, `${m.assertions.total} executed, ${m.assertions.failed} failed (designed API cases are counted separately in the KPIs)`),
+      el('dt', null, 'API evidence'), el('dd', null, el('a', { href: '../../' + m.apiEvidence, target: '_blank', rel: 'noopener' }, m.apiEvidence), ' — sanitized: no headers, bodies or secrets')] : []),
+    el('dt', null, 'Workers'), el('dd', null, val(m.workers)),
+    el('dt', null, 'Retries allowed'), el('dd', null, val(m.retries)),
+    el('dt', null, 'Run facts source'), el('dd', null, src),
+    el('dt', null, 'Execution CSV'), el('dd', null, el('a', { href: '../../' + run.csv }, run.csv)),
+    el('dt', null, 'Playwright HTML report'), el('dd', null, run.htmlReport.path && run.htmlReport.exists
+      ? [el('a', { href: '../../' + run.htmlReport.path, target: '_blank', rel: 'noopener' }, run.htmlReport.path), ' — ', run.htmlReport.note]
+      : el('span', { class: 'nr' }, run.htmlReport.note)),
+  )));
+}
+
+// ---- charts ----
+function chartCard(title, desc, content) {
+  return el('div', { class: 'card chart' }, el('h3', null, title), desc ? el('div', { class: 'status-line' }, desc) : null, content);
+}
+const emptyState = msg => el('div', { class: 'empty' }, msg);
+function legend(outcomes, onPick) {
+  return el('div', { class: 'legend' }, outcomes.map(o => el('button', { type: 'button', onclick: () => onPick(o) }, el('span', { class: `sw o-${o}`, style: `background:var(--${o})` }), OUT_LABEL[o])));
+}
+function applyFilter(f) {
+  Object.keys(state.f).forEach(k => (state.f[k] = '')); Object.assign(state.f, f); state.q = '';
+  syncControls(); renderTable(); document.getElementById('results').scrollIntoView({ behavior: 'smooth' });
+}
+
+function donut(rows) {
+  const counts = OUTCOMES.map(o => [o, rows.filter(r => r.outcome === o).length]).filter(([, n]) => n);
+  const total = counts.reduce((s, [, n]) => s + n, 0);
+  if (!total) return emptyState('No outcomes recorded for this run.');
+  const svg = sv('svg', { viewBox: '0 0 220 220', role: 'img', 'aria-label': 'Final outcome breakdown: ' + counts.map(([o, n]) => `${OUT_LABEL[o]} ${n}`).join(', ') });
+  const R = 90, r = 58, cx = 110, cy = 110; let a0 = -Math.PI / 2;
+  for (const [o, n] of counts) {
+    const title = sv('title', null, `${OUT_LABEL[o]}: ${n} (click to filter)`);
+    const attrs = { class: `seg o-${o}`, tabindex: '0', onclick: () => applyFilter({ outcome: o }), onkeydown: e => (e.key === 'Enter' || e.key === ' ') && applyFilter({ outcome: o }) };
+    if (n === total) { svg.append(sv('path', { ...attrs, d: `M${cx - R},${cy}a${R},${R} 0 1,0 ${2 * R},0a${R},${R} 0 1,0 ${-2 * R},0M${cx - r},${cy}a${r},${r} 0 1,1 ${2 * r},0a${r},${r} 0 1,1 ${-2 * r},0`, 'fill-rule': 'evenodd' }, title)); break; }
+    const a1 = a0 + (n / total) * 2 * Math.PI, big = a1 - a0 > Math.PI ? 1 : 0;
+    const p = (rad, a) => `${cx + rad * Math.cos(a)},${cy + rad * Math.sin(a)}`;
+    svg.append(sv('path', { ...attrs, d: `M${p(R, a0)}A${R},${R} 0 ${big},1 ${p(R, a1)}L${p(r, a1)}A${r},${r} 0 ${big},0 ${p(r, a0)}Z` }, title));
+    a0 = a1;
+  }
+  svg.append(sv('text', { x: cx, y: cy - 4, 'text-anchor': 'middle', class: 'chart-label', 'font-size': '26', 'font-weight': '650' }, String(total)));
+  svg.append(sv('text', { x: cx, y: cy + 16, 'text-anchor': 'middle', class: 'axis' }, 'test instances'));
+  const wrap = el('div', null, el('div', { style: 'max-width:240px;margin:0 auto' }, svg), legend(counts.map(([o]) => o), o => applyFilter({ outcome: o })));
+  wrap.append(el('ul', { class: 'clean status-line' }, counts.map(([o, n]) => el('li', null, `${OUT_LABEL[o]}: ${n}`))));
+  return wrap;
+}
+
+function stacked(rows, fields, label) {
+  const keyOf = r => fields.map(f => r[f]).join(' · ');
+  const groups = [...new Set(rows.map(keyOf))].sort();
+  if (!groups.length) return emptyState('No data recorded for this run.');
+  const W = 560, rowH = 28, left = 230, H = groups.length * rowH + 12;
+  const max = Math.max(...groups.map(g => rows.filter(r => keyOf(r) === g).length));
+  const svg = sv('svg', { viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': label });
+  groups.forEach((g, gi) => {
+    const y = gi * rowH + 4, sample = rows.find(r => keyOf(r) === g);
+    svg.append(sv('text', { x: left - 8, y: y + 14, 'text-anchor': 'end', class: 'chart-label' }, g));
+    let x = left;
+    for (const o of OUTCOMES) {
+      const n = rows.filter(r => keyOf(r) === g && r.outcome === o).length; if (!n) continue;
+      const w = (n / max) * (W - left - 40);
+      const pick = () => applyFilter({ ...Object.fromEntries(fields.map(f => [f, sample[f]])), outcome: o });
+      svg.append(sv('rect', { class: `seg o-${o}`, x, y, width: Math.max(w, 2), height: 20, rx: 3, tabindex: '0', onclick: pick, onkeydown: e => (e.key === 'Enter' || e.key === ' ') && pick() }, sv('title', null, `${g} · ${OUT_LABEL[o]}: ${n} (click to filter)`)));
+      x += w;
+    }
+    svg.append(sv('text', { x: x + 6, y: y + 14, class: 'axis' }, String(rows.filter(r => keyOf(r) === g).length)));
+  });
+  const present = OUTCOMES.filter(o => rows.some(r => r.outcome === o));
+  return el('div', null, svg, legend(present, o => applyFilter({ outcome: o })));
+}
+
+function slowest(rows) {
+  const ran = rows.filter(r => r.durationMs != null).sort((a, b) => b.durationMs - a.durationMs).slice(0, 10);
+  if (!ran.length) return emptyState('No duration data recorded for this run.');
+  const W = 520, rowH = 26, left = 160, H = ran.length * rowH + 10, max = ran[0].durationMs;
+  const svg = sv('svg', { viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': 'Slowest tests by duration' });
+  ran.forEach((r, i) => {
+    const y = i * rowH + 4, w = (r.durationMs / max) * (W - left - 70);
+    const pick = () => { applyFilter({ browser: r.browser }); state.q = r.caseId; syncControls(); renderTable(); };
+    svg.append(sv('text', { x: left - 8, y: y + 13, 'text-anchor': 'end', class: 'chart-label' }, `${r.caseId} · ${r.browser}`));
+    svg.append(sv('rect', { class: `seg o-${r.outcome}`, x: left, y, width: Math.max(w, 2), height: 18, rx: 3, tabindex: '0', onclick: pick, onkeydown: e => (e.key === 'Enter' || e.key === ' ') && pick() }, sv('title', null, `${r.title}: ${r.durationMs} ms (click to show in table)`)));
+    svg.append(sv('text', { x: left + w + 6, y: y + 13, class: 'axis' }, `${r.durationMs} ms`));
+  });
+  return svg;
+}
+
+function history(run) {
+  const sig = r => JSON.stringify([[...r.modules].sort(), [...r.browsers].sort()]);
+  const comparable = DATA.runs.filter(r => sig(r) === sig(run) && r.purpose === run.purpose);
+  if (comparable.length < 2) return emptyState(`Only ${comparable.length} run with this module and browser scope is saved (${run.runId}). Run history appears once 2 or more comparable runs exist.`);
+  const W = 520, H = 200, left = 36, bottom = 40, bw = Math.min(40, (W - left - 10) / comparable.length - 10);
+  const max = Math.max(...comparable.map(r => r.counts.executed + r.counts.skipped + r.counts.notRun), 1);
+  const svg = sv('svg', { viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': 'Run history: outcomes per comparable run' });
+  comparable.forEach((r, i) => {
+    const x = left + i * ((W - left - 10) / comparable.length) + 5; let y = H - bottom;
+    for (const o of ['passed', 'flaky', 'failed', 'interrupted', 'skipped']) {
+      const n = r.counts[o === 'notrun' ? 'notRun' : o]; if (!n) continue;
+      const h = (n / max) * (H - bottom - 10); y -= h;
+      svg.append(sv('rect', { class: `seg o-${o}`, x, y, width: bw, height: h, onclick: () => selectRun(r.runId) }, sv('title', null, `${r.runId}: ${OUT_LABEL[o]} ${n} (click to open run)`)));
+    }
+    if (r.counts.notRun) { const h = (r.counts.notRun / max) * (H - bottom - 10); y -= h; svg.append(sv('rect', { class: 'seg o-notrun', x, y, width: bw, height: h, onclick: () => selectRun(r.runId) }, sv('title', null, `${r.runId}: Not run ${r.counts.notRun}`))); }
+    svg.append(sv('text', { x: x + bw / 2, y: H - bottom + 14, 'text-anchor': 'middle', class: 'axis', 'font-weight': r.runId === run.runId ? '700' : null }, r.runId.slice(-6)));
+    svg.append(sv('text', { x: x + bw / 2, y: H - bottom + 28, 'text-anchor': 'middle', class: 'axis' }, pct(r.counts.passRate)));
+  });
+  return el('div', null, svg, el('div', { class: 'status-line' }, 'Label = last 6 characters of the Run ID, then the final pass rate. Click a bar to open that run.'));
+}
+
+function renderCharts(run) {
+  const body = document.getElementById('chartsBody'); body.replaceChildren();
+  const rows = rowsFor(run);
+  body.append(
+    chartCard('Final outcome breakdown', 'One count per test instance (retries are not extra cases). Click a segment to filter the table.', run ? donut(rows) : emptyState('No run selected.')),
+    chartCard('Outcomes by area, layer and browser', 'Click a segment to filter the table.', run ? stacked(rows, ['area', 'layer', 'browser'], 'Outcomes by area, layer and browser') : emptyState('No run selected.')),
+    chartCard('Outcomes by module and browser', 'Click a segment to filter by module, browser and outcome.', run ? stacked(rows, ['module', 'browser'], 'Outcomes by module and browser') : emptyState('No run selected.')),
+    chartCard('Slowest tests', 'Top 10 by duration (sum of attempts). Click a bar to find the test.', run ? slowest(rows) : emptyState('No run selected.')),
+    chartCard('Run history', 'Only runs with the same module and browser scope are compared.', run ? history(run) : emptyState('No run selected.')),
+  );
+}
+
+// ---- table ----
+function filteredRows() {
+  const q = state.q.trim().toLowerCase();
+  return rowsFor(state.run).filter(r =>
+    Object.entries(state.f).every(([k, v]) => !v || String(r[k]) === v) &&
+    (!q || [r.caseId, r.title, r.module, r.category, ...r.attempts.map(a => a.error)].join(' ').toLowerCase().includes(q)))
+    .sort((a, b) => {
+      const { key, dir } = state.sort, x = a[key], y = b[key];
+      if (x == null && y == null) return 0; if (x == null) return 1; if (y == null) return -1;
+      return (typeof x === 'number' ? x - y : String(x).localeCompare(String(y), undefined, { numeric: true })) * dir;
+    });
+}
+function buildOptions() {
+  const rows = rowsFor(state.run);
+  const opts = { outcome: OUTCOMES.filter(o => rows.some(r => r.outcome === o)) };
+  for (const k of ['area', 'module', 'layer', 'browser', 'priority', 'category']) opts[k] = [...new Set(rows.map(r => r[k]))].sort();
+  const names = { outcome: 'All outcomes', area: 'All areas', layer: 'All layers', module: 'All modules', browser: 'All browsers', priority: 'All priorities', category: 'All categories' };
+  for (const [k, list] of Object.entries(opts)) {
+    const s = document.getElementById('f-' + k);
+    s.replaceChildren(el('option', { value: '' }, names[k]), ...list.map(v => el('option', { value: v }, k === 'outcome' ? OUT_LABEL[v] : v)));
+  }
+}
+function syncControls() {
+  document.getElementById('q').value = state.q;
+  for (const k of Object.keys(state.f)) {
+    const s = document.getElementById('f-' + k);
+    if (state.f[k] && ![...s.options].some(o => o.value === state.f[k])) s.append(el('option', { value: state.f[k] }, state.f[k]));
+    s.value = state.f[k];
+  }
+}
+function detailRow(r) {
+  const d = r.def;
+  const defBox = d ? el('dl', { class: 'meta' },
+    el('dt', null, 'Requirement / source'), el('dd', null, val(d.requirementIds), d.requirementIds?.startsWith('OBS-') ? el('span', { class: 'tag' }, 'observed behavior, not an approved requirement') : null),
+    el('dt', null, 'Preconditions'), el('dd', null, val(d.preconditions)),
+    el('dt', null, 'Test data'), el('dd', null, val(d.testData)),
+    el('dt', null, 'Steps'), el('dd', null, val(d.steps)),
+    el('dt', null, 'Expected result'), el('dd', null, val(d.expected)),
+    el('dt', null, 'Automation'), el('dd', null, val(d.automation)),
+  ) : el('div', { class: 'nr' }, 'No test-case definition found for this Test Case ID.');
+  const attempts = r.attempts.length ? el('div', { class: 'table-wrap' }, el('table', { class: 'attempts' },
+    el('thead', null, el('tr', null, ['Attempt', 'Status', 'Duration', 'Error', 'Screenshot', 'Trace'].map(h => el('th', null, h)))),
+    el('tbody', null, r.attempts.map(a => el('tr', null,
+      el('td', null, `#${a.retry + 1}${a.retry ? ` (retry ${a.retry})` : ''}`), el('td', null, a.status), el('td', { class: 'num' }, `${a.durationMs} ms`),
+      el('td', null, a.error ? el('pre', { class: 'err' }, a.error) : el('span', { class: 'nr' }, 'None')),
+      el('td', null, r.layer === 'API' ? el('span', { class: 'nr' }, 'Not applicable (API request)') : fileLink(a.screenshot, a.screenshotExists, 'Screenshot')),
+      el('td', null, r.layer === 'API' ? el('span', { class: 'nr' }, 'Not applicable (API request)') : fileLink(a.trace, a.traceExists, 'Trace'), a.trace && a.traceExists ? el('div', { class: 'status-line' }, 'View: ', el('code', null, `npx playwright show-trace ${a.trace}`)) : null),
+    ))))) : el('div', { class: 'nr' }, r.outcome === 'notrun' ? 'Not run: no execution record exists for this case and browser in this run.' : 'No attempts recorded.');
+  return el('tr', { class: 'detail' }, el('td', { colspan: COLS.length + 1 }, el('div', { class: 'grid two' }, el('div', null, el('h3', null, 'Test-case definition'), defBox), el('div', null, el('h3', null, 'Attempts'), attempts))));
+}
+function renderTable() {
+  const table = document.getElementById('resultsTable');
+  table.tHead.replaceChildren(el('tr', null, el('th', { class: 'expander' }, el('span', { class: 'sr-only' }, 'Expand')),
+    COLS.map(([k, label]) => el('th', { 'aria-sort': state.sort.key === k ? (state.sort.dir > 0 ? 'ascending' : 'descending') : 'none' },
+      el('button', { type: 'button', onclick: () => { state.sort = { key: k, dir: state.sort.key === k ? -state.sort.dir : 1 }; renderTable(); } }, label)))));
+  const rows = filteredRows(), all = rowsFor(state.run);
+  const body = table.tBodies[0]; body.replaceChildren();
+  if (!rows.length) body.append(el('tr', null, el('td', { colspan: COLS.length + 1 }, el('div', { class: 'empty' }, all.length ? 'No results match the current search and filters.' : 'No results recorded for this run.'))));
+  for (const r of rows) {
+    const open = state.open.has(r.key);
+    body.append(el('tr', null,
+      el('td', { class: 'expander' }, el('button', { type: 'button', 'aria-expanded': String(open), 'aria-label': `${open ? 'Collapse' : 'Expand'} ${r.caseId}`, onclick: () => { open ? state.open.delete(r.key) : state.open.add(r.key); renderTable(); } }, open ? '−' : '+')),
+      el('td', null, r.caseId || el('span', { class: 'nr' }, 'No ID')),
+      el('td', null, r.title),
+      el('td', null, r.area),
+      el('td', null, r.module),
+      el('td', null, r.layer),
+      el('td', null, r.category, r.category !== 'Uncategorized' ? el('span', { class: 'tag', title: 'Inferred by keyword rules from the test-case name' }, 'inferred') : null),
+      el('td', null, r.priority),
+      el('td', null, r.tool),
+      el('td', null, pill(r.outcome)),
+      el('td', { class: 'num' }, String(r.attemptCount)),
+      el('td', { class: 'num' }, r.durationMs == null ? '—' : String(r.durationMs)),
+    ));
+    if (open) body.append(detailRow(r));
+  }
+  const active = Object.entries(state.f).filter(([, v]) => v).map(([k, v]) => `${k}: ${k === 'outcome' ? OUT_LABEL[v] : v}`);
+  if (state.q) active.push(`search: “${state.q}”`);
+  document.getElementById('tableStatus').textContent = `Showing ${rows.length} of ${all.length} rows` + (active.length ? ` — filtered by ${active.join(', ')}` : '');
+}
+function exportCsv() {
+  // Prefix cells that start with = + - @ so spreadsheet apps don't treat them as formulas.
+  const cell = v => { let s = String(v ?? ''); if (/^[=+\-@]/.test(s)) s = "'" + s; return `"${s.replace(/"/g, '""')}"`; };
+  const head = ['Run ID', 'Test Case ID', 'Test Name', 'Area', 'Module', 'Layer', 'Scenario Category (inferred)', 'Priority', 'Browser/Tool', 'Final Outcome', 'Attempt Count', 'Duration (ms)', 'Errors'];
+  const lines = [head, ...filteredRows().map(r => [state.run.runId, r.caseId, r.title, r.area, r.module, r.layer, r.category, r.priority, r.tool, OUT_LABEL[r.outcome], r.attemptCount, r.durationMs ?? '', r.attempts.map(a => a.error).filter(Boolean).join(' | ')])];
+  const blob = new Blob([lines.map(l => l.map(cell).join(',')).join('\n') + '\n'], { type: 'text/csv' });
+  const a = el('a', { href: URL.createObjectURL(blob), download: `qa-results-${state.run.runId}-filtered.csv` });
+  document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+// ---- failures ----
+function renderFailures(run) {
+  const body = document.getElementById('failuresBody'); body.replaceChildren();
+  if (!run) { body.append(emptyState('No run selected.')); return; }
+  const list = run.instances.filter(i => i.attempts.length > 1 || ['failed', 'interrupted'].includes(i.outcome));
+  if (!list.length) {
+    body.append(emptyState(`No failed attempts or retries were recorded in ${run.runId}. Screenshots and traces are captured only for failed attempts, so none exist for this run.`));
+    return;
+  }
+  for (const i of list) {
+    body.append(el('div', { class: 'card', style: 'margin-bottom:12px' },
+      el('h3', null, `${i.caseId} · ${i.browser} · `, pill(i.outcome)),
+      el('div', null, i.title),
+      el('p', null, el('strong', null, 'Cause: '), i.cause || 'Needs investigation',
+        el('span', { class: 'status-line' }, i.causeEvidence ? ' — from a reviewed triage entry (test-cases/failure-triage.csv); severity is not assigned.' : ' — no reviewed triage entry; classified only from evidence in the recorded error. Severity is not assigned.')),
+      i.causeEvidence ? el('p', { class: 'note' }, el('strong', null, 'Triage evidence: '), i.causeEvidence) : null,
+      detailRow({ ...i, attemptCount: i.attempts.length, def: DATA.cases.find(c => c.caseId === i.caseId) }).firstChild.firstChild));
+  }
+}
+
+// ---- coverage ----
+function renderCoverage(run) {
+  const body = document.getElementById('coverageBody'); body.replaceChildren();
+  if (!run) { body.append(emptyState('No run selected.')); return; }
+  const a = run.assessment, c = run.counts;
+  const modules = [...new Set(DATA.cases.map(x => x.module))];
+  const covTable = el('table', null,
+    el('thead', null, el('tr', null, ['Module', 'Designed cases', 'In this run\'s scope', 'Unique cases executed', 'Browser instances executed', 'Not run'].map(h => el('th', null, h)))),
+    el('tbody', null, modules.map(mod => {
+      const inScope = run.modules.includes(mod);
+      const inst = run.instances.filter(i => i.module === mod && i.outcome !== 'skipped');
+      return el('tr', null, el('td', null, mod), el('td', { class: 'num' }, String(DATA.cases.filter(x => x.module === mod).length)), el('td', null, inScope ? 'Yes' : 'No (not inferred as not run)'),
+        el('td', { class: 'num' }, String(new Set(inst.map(i => i.caseId)).size)), el('td', { class: 'num' }, String(inst.length)),
+        el('td', { class: 'num' }, String(run.notRun.filter(n => n.module === mod).length)));
+    })));
+  const obs = DATA.observations;
+  body.append(el('div', { class: 'grid two' },
+    el('div', { class: 'card wide' }, el('h3', null, 'Designed vs executed'), el('div', { class: 'table-wrap' }, covTable),
+      el('p', { class: 'status-line' }, `A unique case is one Test Case ID. A browser instance is that case run in one browser. ${c.uniqueExecutedCases} unique case(s) × ${run.browsers.length} browser(s) = ${c.executed} executed instance(s).`),
+      el('p', { class: 'status-line' }, `Browsers configured: ${DATA.browsersConfigured.join(', ') || NR}. Executed in this run: ${run.browsers.join(', ')}.`)),
+    el('div', { class: 'card' }, el('h3', null, 'API testing (Postman)'), el('p', null, el('span', { class: 'badge-nr' }, DATA.postman.status)),
+      DATA.postman.latest
+        ? el('p', { class: 'status-line' }, `${DATA.postman.latest.collection} via ${DATA.postman.latest.tool}: ${DATA.postman.latest.requests.executed} requests executed (${DATA.postman.latest.requests.skipped} skipped), ${DATA.postman.latest.assertions.total} assertions (${DATA.postman.latest.assertions.failed} failed), ${DATA.postman.latest.counts.executed} designed cases executed (${DATA.postman.latest.counts.passed} passed, ${DATA.postman.latest.counts.failed} failed, ${DATA.postman.latest.counts.skipped} skipped). Select that run above for details.`)
+        : el('p', { class: 'status-line' }, 'No API execution results exist.'),
+      el('p', { class: 'status-line' }, `Files in postman/: ${DATA.postman.files.join(', ') || 'none'}.`),
+      el('h3', null, 'Not claimed by these UI tests'), el('ul', { class: 'clean' }, ['Accessibility', 'Performance', 'Mobile viewports', 'Security (the HTML-like input check only confirms text display)'].map(t => el('li', null, t)))),
+  ));
+  body.append(el('div', { class: 'grid two', style: 'margin-top:12px' },
+    el('div', { class: 'card' }, el('h3', null, 'Coverage gaps'), el('ul', { class: 'clean' }, a.gaps.map(g => el('li', null, g)))),
+    el('div', { class: 'card' }, el('h3', null, 'Open questions for the product owner'),
+      obs.questions.length ? el('ul', { class: 'clean' }, obs.questions.map(q => el('li', null, q.text, el('span', { class: 'tag' }, q.source.replace('test-cases/', ''))))) : emptyState('No open questions recorded.')),
+  ));
+  const inv = DATA.inventory || [];
+  const statusCounts = {};
+  for (const f of inv) statusCounts[f['Coverage Status']] = (statusCounts[f['Coverage Status']] ?? 0) + 1;
+  body.append(el('div', { class: 'card', style: 'margin-top:12px' },
+    el('h3', null, 'Feature inventory'),
+    el('p', { class: 'status-line' }, `${inv.length} features discovered on the live site. Coverage status (design/automation lifecycle) is kept separate from run outcomes; the "Executed in this run" column is derived from the selected run. `,
+      Object.entries(statusCounts).map(([k, n]) => `${k}: ${n}`).join(' · ')),
+    inv.length ? el('div', { class: 'table-wrap' }, el('table', null,
+      el('thead', null, el('tr', null, ['Feature', 'Category', 'Coverage status', 'Executed in this run', 'Priority', 'Risk', 'Case IDs', 'Blocker / exclusion reason', 'Notes'].map(h => el('th', null, h)))),
+      el('tbody', null, inv.map(f => el('tr', null, el('td', null, f.Feature), el('td', null, f.Category), el('td', null, f['Coverage Status']),
+        el('td', null, (run.featuresExecuted || run.modules).includes(f.Feature) ? 'Yes' : 'No'), el('td', null, f.Priority), el('td', null, f.Risk),
+        el('td', null, f['Case IDs'] || '—'), el('td', null, f['Blocker or Exclusion Reason'] || '—'), el('td', null, f.Notes || '—'))))))
+      : emptyState('No feature inventory found (test-cases/feature-inventory.csv).'),
+    el('p', { class: 'status-line' }, 'Priority and risk are QA-assigned, not business-approved.')));
+  body.append(el('div', { class: 'card', style: 'margin-top:12px' },
+    el('h3', null, 'Observed behavior (not approved requirements)'),
+    el('p', { class: 'note' }, 'These observations describe what the page did when it was inspected. They are the basis for the current test expectations, but they are not approved requirements. Expectations may change once requirements are confirmed.'),
+    obs.items.length ? el('div', { class: 'table-wrap', style: 'margin-top:8px' }, el('table', null,
+      el('thead', null, el('tr', null, el('th', null, 'ID'), el('th', null, 'Observation'), el('th', null, 'Source'))),
+      el('tbody', null, obs.items.map(o => el('tr', null, el('td', null, o.id), el('td', null, o.text), el('td', null, o.source.replace('test-cases/', '')))))))
+      : emptyState('No observed-behavior notes found.'),
+    obs.source ? el('p', { class: 'status-line' }, `Source: ${obs.source}`) : null));
+  body.append(el('div', { class: 'card', style: 'margin-top:12px' }, el('h3', null, 'QA assessment'), el('ul', { class: 'clean' }, a.lines.map(l => el('li', null, l)))));
+}
+
+// ---- wiring ----
+function selectRun(id) {
+  state.run = runById(id) || null; state.open.clear();
+  Object.keys(state.f).forEach(k => (state.f[k] = '')); state.q = '';
+  document.getElementById('runSelect').value = id || '';
+  renderSummary(state.run); renderCharts(state.run); buildOptions(); syncControls(); renderTable(); renderFailures(state.run); renderCoverage(state.run);
+}
+document.getElementById('generated').textContent = `Generated ${fmtTime(DATA.generatedAt, DATA.timezone)} from saved results only · ${DATA.runs.length} run(s) on file`;
+const rs = document.getElementById('runSelect');
+rs.replaceChildren(...(DATA.runs.length ? [...DATA.runs].reverse().map(r => el('option', { value: r.runId }, r.purpose === 'normal' ? r.runId : `${r.runId} (${r.purpose})`)) : [el('option', { value: '' }, 'No runs')]));
+rs.addEventListener('change', e => selectRun(e.target.value));
+document.getElementById('q').addEventListener('input', e => { state.q = e.target.value; renderTable(); });
+for (const k of Object.keys(state.f)) document.getElementById('f-' + k).addEventListener('change', e => { state.f[k] = e.target.value; renderTable(); });
+document.getElementById('clearBtn').addEventListener('click', () => { Object.keys(state.f).forEach(k => (state.f[k] = '')); state.q = ''; syncControls(); renderTable(); });
+document.getElementById('exportBtn').addEventListener('click', () => state.run && exportCsv());
+document.getElementById('printBtn').addEventListener('click', () => window.print());
+selectRun(DATA.selectedRunId);
+</script>
+</body>
+</html>

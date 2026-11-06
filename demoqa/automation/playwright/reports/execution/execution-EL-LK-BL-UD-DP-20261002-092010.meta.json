@@ -1,0 +1,18 @@
+{
+  "runId": "EL-LK-BL-UD-DP-20261002-092010",
+  "purpose": "normal",
+  "timezone": "Asia/Manila",
+  "playwrightVersion": "1.63.0",
+  "workers": 2,
+  "projects": [
+    "chromium"
+  ],
+  "baseURL": "https://demoqa.com",
+  "retries": 1,
+  "command": "playwright test tests/links.spec.ts tests/broken-links.spec.ts tests/upload-download.spec.ts tests/dynamic-properties.spec.ts --project=chromium",
+  "htmlReport": "reports/html/EL-LK-BL-UD-DP-20261002-092010/index.html",
+  "evidenceDir": "reports/evidence/EL-LK-BL-UD-DP-20261002-092010",
+  "startTime": "2026-10-02T01:20:11.826Z",
+  "wallClockMs": 49498,
+  "status": "failed"
+}

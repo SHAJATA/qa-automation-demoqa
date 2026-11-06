@@ -1,0 +1,18 @@
+{
+  "runId": "WI-FIX-20261002-093904",
+  "purpose": "normal",
+  "timezone": "Asia/Manila",
+  "playwrightVersion": "1.63.0",
+  "workers": 2,
+  "projects": [
+    "chromium"
+  ],
+  "baseURL": "https://demoqa.com",
+  "retries": 1,
+  "command": "playwright test tests/menu.spec.ts tests/select-menu.spec.ts --project=chromium",
+  "htmlReport": "reports/html/WI-FIX-20261002-093904/index.html",
+  "evidenceDir": "reports/evidence/WI-FIX-20261002-093904",
+  "startTime": "2026-10-02T01:39:08.394Z",
+  "wallClockMs": 17355,
+  "status": "passed"
+}

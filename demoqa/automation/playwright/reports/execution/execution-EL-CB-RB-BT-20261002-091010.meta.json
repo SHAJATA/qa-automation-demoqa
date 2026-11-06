@@ -1,0 +1,18 @@
+{
+  "runId": "EL-CB-RB-BT-20261002-091010",
+  "purpose": "normal",
+  "timezone": "Asia/Manila",
+  "playwrightVersion": "1.63.0",
+  "workers": 2,
+  "projects": [
+    "chromium"
+  ],
+  "baseURL": "https://demoqa.com",
+  "retries": 1,
+  "command": "playwright test tests/check-box.spec.ts tests/radio-button.spec.ts tests/buttons.spec.ts --project=chromium",
+  "htmlReport": "reports/html/EL-CB-RB-BT-20261002-091010/index.html",
+  "evidenceDir": "reports/evidence/EL-CB-RB-BT-20261002-091010",
+  "startTime": "2026-10-02T01:10:11.955Z",
+  "wallClockMs": 29494,
+  "status": "passed"
+}

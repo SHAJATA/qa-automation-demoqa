@@ -1,0 +1,18 @@
+{
+  "runId": "VERIFY-REPORTING-20261002-090103",
+  "purpose": "reporting-verification",
+  "timezone": "Asia/Manila",
+  "playwrightVersion": "1.63.0",
+  "workers": 2,
+  "projects": [
+    "chromium"
+  ],
+  "baseURL": "https://demoqa.com",
+  "retries": 1,
+  "command": "playwright test tests/text-box.spec.ts --project=chromium -g UI-TB-004",
+  "htmlReport": "reports/html/VERIFY-REPORTING-20261002-090103/index.html",
+  "evidenceDir": "reports/evidence/VERIFY-REPORTING-20261002-090103",
+  "startTime": "2026-10-02T01:01:04.785Z",
+  "wallClockMs": 25221,
+  "status": "failed"
+}

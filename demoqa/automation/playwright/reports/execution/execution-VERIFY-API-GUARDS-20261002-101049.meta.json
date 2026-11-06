@@ -1,0 +1,32 @@
+{
+  "runId": "VERIFY-API-GUARDS-20261002-101049",
+  "purpose": "reporting-verification",
+  "layer": "API",
+  "timezone": "Asia/Manila",
+  "tool": "Newman 6.2.2",
+  "playwrightVersion": null,
+  "workers": 1,
+  "projects": [
+    "API"
+  ],
+  "retries": 0,
+  "baseURL": "https://demoqa.com",
+  "command": "node scripts/run-api.mjs",
+  "collection": "DemoQA Interview Demo - Account and BookStore [VERIFICATION COPY: token step forced to fail]",
+  "htmlReport": null,
+  "evidenceDir": "reports/evidence/VERIFY-API-GUARDS-20261002-101049",
+  "apiEvidence": "reports/evidence/VERIFY-API-GUARDS-20261002-101049/api-results.json",
+  "requests": {
+    "total": 11,
+    "failed": 0,
+    "executed": 11,
+    "skipped": 6
+  },
+  "assertions": {
+    "total": 34,
+    "failed": 5
+  },
+  "startTime": "2026-10-02T02:10:50.367Z",
+  "wallClockMs": 14377,
+  "status": "failed"
+}

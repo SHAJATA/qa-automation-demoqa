@@ -1,0 +1,32 @@
+{
+  "runId": "API-20261002-100912",
+  "purpose": "normal",
+  "layer": "API",
+  "timezone": "Asia/Manila",
+  "tool": "Newman 6.2.2",
+  "playwrightVersion": null,
+  "workers": 1,
+  "projects": [
+    "API"
+  ],
+  "retries": 0,
+  "baseURL": "https://demoqa.com",
+  "command": "node scripts/run-api.mjs",
+  "collection": "DemoQA Interview Demo - Account and BookStore",
+  "htmlReport": null,
+  "evidenceDir": "reports/evidence/API-20261002-100912",
+  "apiEvidence": "reports/evidence/API-20261002-100912/api-results.json",
+  "requests": {
+    "total": 16,
+    "failed": 0,
+    "executed": 16,
+    "skipped": 0
+  },
+  "assertions": {
+    "total": 48,
+    "failed": 2
+  },
+  "startTime": "2026-10-02T02:09:13.517Z",
+  "wallClockMs": 16907,
+  "status": "failed"
+}

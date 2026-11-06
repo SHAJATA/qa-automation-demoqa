@@ -1,0 +1,18 @@
+{
+  "runId": "PHASE1-MOVE-TB-20261006-234052",
+  "purpose": "normal",
+  "timezone": "Asia/Manila",
+  "playwrightVersion": "1.63.0",
+  "workers": 2,
+  "projects": [
+    "chromium"
+  ],
+  "baseURL": "https://demoqa.com",
+  "retries": 1,
+  "command": "playwright test tests/text-box.spec.ts --project=chromium",
+  "htmlReport": "reports/html/PHASE1-MOVE-TB-20261006-234052/index.html",
+  "evidenceDir": "reports/evidence/PHASE1-MOVE-TB-20261006-234052",
+  "startTime": "2026-10-06T15:40:53.235Z",
+  "wallClockMs": 23429,
+  "status": "passed"
+}

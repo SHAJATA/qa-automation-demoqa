@@ -1,0 +1,1123 @@
+{
+  "info": {
+    "name": "DemoQA Interview Demo - Account and BookStore",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "QA workflow demo: API contract analysis → test-case design → automation → execution → investigation → reporting.\n\nRun the folders in order (Collection Runner or Newman). Each run creates ONE disposable fictional user, exercises it, and deletes it in \"4 - Cleanup\".\n\nTest names start with the designed case ID (e.g. \"API-AC-001 | ...\") from test-cases/test-cases.csv.\n\nContract notes and documented-vs-observed discrepancies: test-cases/api-observed-behavior.md. API-CT-* tests check the documented contract and are expected to fail until the API or its documentation is aligned.\n\nSecrets: the password and token are generated at runtime into the environment CURRENT value only, never written to this file, and cleared at the end of the run."
+  },
+  "item": [
+    {
+      "name": "1 - Account lifecycle",
+      "item": [
+        {
+          "name": "Create User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/Account/v1/User",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "Account",
+                "v1",
+                "User"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userName\": \"{{username}}\",\n  \"password\": \"{{userPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Cases: API-AC-001, API-CT-001"
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Start of the lifecycle: clear every value an earlier run may have left, so nothing stale is reused.",
+                  "['username', 'userId', 'userPassword', 'authToken', 'selectedIsbn', 'selectedTitle'].forEach(k => pm.environment.unset(k));",
+                  "// Username generated ONCE per lifecycle; every later request reuses it.",
+                  "pm.environment.set('username', 'dqa_demo_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8));",
+                  "// Disposable password meeting the confirmed rules (OBS-API-02): 8+ chars, upper, lower, digit, special.",
+                  "// Stored only in the local environment's current value; never logged.",
+                  "pm.environment.set('userPassword', 'Qa!' + Math.random().toString(36).slice(2, 10) + '7Z');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let body;",
+                  "try { body = pm.response.json(); } catch (e) { body = undefined; }",
+                  "const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;",
+                  "// Assertions follow the OBSERVED contract (OBS-API-01). API-CT-001 checks the DOCUMENTED field separately (D1).",
+                  "pm.test('API-AC-001 | status is 201 Created', () => pm.response.to.have.status(201));",
+                  "pm.test('API-AC-001 | body has userID (UUID), username and books', () => {",
+                  "  pm.expect(body).to.be.an('object').that.has.all.keys('userID', 'username', 'books');",
+                  "  pm.expect(UUID.test(body.userID), 'userID is a UUID').to.be.true;",
+                  "});",
+                  "pm.test('API-AC-001 | username equals the requested username', () => pm.expect(body.username).to.eql(pm.environment.get('username')));",
+                  "pm.test('API-AC-001 | new user starts with no books', () => pm.expect(body.books).to.eql([]));",
+                  "pm.test('API-CT-001 | documented field \"userId\" is present (Swagger CreateUserResult)', () => pm.expect(body).to.have.property('userId'));",
+                  "// Capture the identifier only after the success checks hold.",
+                  "if (pm.response.code === 201 && body && UUID.test(body.userID) && body.username === pm.environment.get('username')) {",
+                  "  pm.environment.set('userId', body.userID);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Generate Token",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/Account/v1/GenerateToken",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "Account",
+                "v1",
+                "GenerateToken"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userName\": \"{{username}}\",\n  \"password\": \"{{userPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Cases: API-AC-002"
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Prerequisite guard: skip (reported as not run) instead of sending a request with missing or stale data.",
+                  "if (!pm.environment.get('userId') || !pm.environment.get('userPassword')) { pm.execution.skipRequest(); }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let body;",
+                  "try { body = pm.response.json(); } catch (e) { body = undefined; }",
+                  "const JWT = /^[\\w-]+\\.[\\w-]+\\.[\\w-]+$/;",
+                  "pm.test('API-AC-002 | status is 200 OK', () => pm.response.to.have.status(200));",
+                  "// HTTP 200 alone is not success here (see API-AC-102), so the status field is asserted too.",
+                  "pm.test('API-AC-002 | status is \"Success\" with the success message', () => {",
+                  "  pm.expect(body.status).to.eql('Success');",
+                  "  pm.expect(body.result).to.eql('User authorized successfully.');",
+                  "});",
+                  "// Boolean form keeps the token value out of failure messages and logs.",
+                  "pm.test('API-AC-002 | token is a JWT', () => pm.expect(typeof body.token === 'string' && JWT.test(body.token), 'token has JWT shape').to.be.true);",
+                  "pm.test('API-AC-002 | expires is a future date', () => pm.expect(Date.parse(body.expires) > Date.now(), 'expires is in the future').to.be.true);",
+                  "if (pm.response.code === 200 && body && body.status === 'Success' && JWT.test(body.token || '')) {",
+                  "  pm.environment.set('authToken', body.token);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Authorized",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/Account/v1/Authorized",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "Account",
+                "v1",
+                "Authorized"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userName\": \"{{username}}\",\n  \"password\": \"{{userPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Cases: API-AC-004\n\nObserved: returns false until a token has been generated for the user (OBS-API-06)."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Prerequisite guard: skip (reported as not run) instead of sending a request with missing or stale data.",
+                  "if (!pm.environment.get('userId') || !pm.environment.get('authToken')) { pm.execution.skipRequest(); }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let body;",
+                  "try { body = pm.response.json(); } catch (e) { body = undefined; }",
+                  "pm.test('API-AC-004 | status is 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('API-AC-004 | body is exactly true', () => pm.expect(body).to.equal(true));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get User (initial)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/Account/v1/User/{{userId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "Account",
+                "v1",
+                "User",
+                "{{userId}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{authToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Cases: API-AC-003, API-AC-005"
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Prerequisite guard: skip (reported as not run) instead of sending a request with missing or stale data.",
+                  "if (!pm.environment.get('userId') || !pm.environment.get('authToken')) { pm.execution.skipRequest(); }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let body;",
+                  "try { body = pm.response.json(); } catch (e) { body = undefined; }",
+                  "// A 200 on this protected endpoint is the proof that the token is usable.",
+                  "pm.test('API-AC-003 | token is accepted (status 200 OK)', () => pm.response.to.have.status(200));",
+                  "pm.test('API-AC-005 | body matches the user schema', () => pm.response.to.have.jsonSchema({\"type\":\"object\",\"required\":[\"userId\",\"username\",\"books\"],\"properties\":{\"userId\":{\"type\":\"string\"},\"username\":{\"type\":\"string\"},\"books\":{\"type\":\"array\",\"items\":{\"type\":\"object\",\"required\":[\"isbn\",\"title\"]}}}}));",
+                  "pm.test('API-AC-005 | identity matches the created user', () => {",
+                  "  pm.expect(body.userId).to.eql(pm.environment.get('userId'));",
+                  "  pm.expect(body.username).to.eql(pm.environment.get('username'));",
+                  "});",
+                  "pm.test('API-AC-005 | initial book list is empty', () => pm.expect(body.books).to.eql([]));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2 - BookStore lifecycle",
+      "item": [
+        {
+          "name": "Get Books (catalog)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/BookStore/v1/Books",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "BookStore",
+                "v1",
+                "Books"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "Cases: API-BS-001"
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Clear the previous selection so a failed catalog read can never reuse an old ISBN.",
+                  "pm.environment.unset('selectedIsbn'); pm.environment.unset('selectedTitle');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let body;",
+                  "try { body = pm.response.json(); } catch (e) { body = undefined; }",
+                  "const FIELDS = ['isbn', 'title', 'subTitle', 'author', 'publish_date', 'publisher', 'pages', 'description', 'website'];",
+                  "pm.test('API-BS-001 | status is 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('API-BS-001 | catalog is a non-empty books array', () => pm.expect(body.books).to.be.an('array').that.is.not.empty);",
+                  "pm.test('API-BS-001 | every book has the documented BookModal fields', () => {",
+                  "  body.books.forEach(b => pm.expect(b, b.isbn).to.include.all.keys(...FIELDS));",
+                  "});",
+                  "pm.test('API-BS-001 | first ISBN is 13 digits', () => pm.expect(body.books[0].isbn).to.match(/^\\d{13}$/));",
+                  "if (pm.response.code === 200 && body && Array.isArray(body.books) && /^\\d{13}$/.test((body.books[0] || {}).isbn)) {",
+                  "  pm.environment.set('selectedIsbn', body.books[0].isbn);",
+                  "  pm.environment.set('selectedTitle', body.books[0].title);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Add Book",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/BookStore/v1/Books",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "BookStore",
+                "v1",
+                "Books"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{authToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"{{userId}}\",\n  \"collectionOfIsbns\": [\n    {\n      \"isbn\": \"{{selectedIsbn}}\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Cases: API-BS-002"
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Prerequisite guard: skip (reported as not run) instead of sending a request with missing or stale data.",
+                  "if (!pm.environment.get('userId') || !pm.environment.get('authToken') || !pm.environment.get('selectedIsbn')) { pm.execution.skipRequest(); }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let body;",
+                  "try { body = pm.response.json(); } catch (e) { body = undefined; }",
+                  "pm.test('API-BS-002 | status is 201 Created', () => pm.response.to.have.status(201));",
+                  "// Observed shape {books:[{isbn}]} differs from the documented {isbn} (D5); asserted exactly as observed.",
+                  "pm.test('API-BS-002 | response lists exactly the added ISBN', () => pm.expect(body).to.eql({ books: [{ isbn: pm.environment.get('selectedIsbn') }] }));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get User (after add)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/Account/v1/User/{{userId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "Account",
+                "v1",
+                "User",
+                "{{userId}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{authToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Cases: API-BS-003"
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Prerequisite guard: skip (reported as not run) instead of sending a request with missing or stale data.",
+                  "if (!pm.environment.get('userId') || !pm.environment.get('authToken') || !pm.environment.get('selectedIsbn')) { pm.execution.skipRequest(); }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let body;",
+                  "try { body = pm.response.json(); } catch (e) { body = undefined; }",
+                  "pm.test('API-BS-003 | status is 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('API-BS-003 | the added ISBN is persisted with its catalog title', () => {",
+                  "  pm.expect(body.books).to.have.lengthOf(1);",
+                  "  pm.expect(body.books[0].isbn).to.eql(pm.environment.get('selectedIsbn'));",
+                  "  pm.expect(body.books[0].title).to.eql(pm.environment.get('selectedTitle'));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete Book",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/BookStore/v1/Book",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "BookStore",
+                "v1",
+                "Book"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{authToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"isbn\": \"{{selectedIsbn}}\",\n  \"userId\": \"{{userId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Cases: API-BS-004"
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Prerequisite guard: skip (reported as not run) instead of sending a request with missing or stale data.",
+                  "if (!pm.environment.get('userId') || !pm.environment.get('authToken') || !pm.environment.get('selectedIsbn')) { pm.execution.skipRequest(); }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('API-BS-004 | status is 204 No Content', () => pm.response.to.have.status(204));",
+                  "// Swagger documents a UserBooksResult body for 204 (D6); a 204 carries no body.",
+                  "pm.test('API-BS-004 | response body is empty', () => pm.expect(pm.response.text()).to.eql(''));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get User (after delete)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/Account/v1/User/{{userId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "Account",
+                "v1",
+                "User",
+                "{{userId}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{authToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Cases: API-BS-005"
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Prerequisite guard: skip (reported as not run) instead of sending a request with missing or stale data.",
+                  "if (!pm.environment.get('userId') || !pm.environment.get('authToken') || !pm.environment.get('selectedIsbn')) { pm.execution.skipRequest(); }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let body;",
+                  "try { body = pm.response.json(); } catch (e) { body = undefined; }",
+                  "pm.test('API-BS-005 | status is 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('API-BS-005 | the deleted ISBN is absent', () => {",
+                  "  pm.expect(body.books).to.eql([]);",
+                  "  pm.expect(JSON.stringify(body.books)).to.not.include(pm.environment.get('selectedIsbn'));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "3 - Negative cases (isolated)",
+      "item": [
+        {
+          "name": "Negative - Duplicate username",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/Account/v1/User",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "Account",
+                "v1",
+                "User"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userName\": \"{{username}}\",\n  \"password\": \"{{userPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Cases: API-AC-101, API-CT-002"
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Prerequisite guard: skip (reported as not run) instead of sending a request with missing or stale data.",
+                  "if (!pm.environment.get('userId') || !pm.environment.get('userPassword')) { pm.execution.skipRequest(); }",
+                  "// Snapshot lifecycle values in request-scoped variables to prove this negative call does not change them.",
+                  "pm.variables.set('userIdBefore', pm.environment.get('userId'));",
+                  "pm.variables.set('tokenBefore', pm.environment.get('authToken'));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let body;",
+                  "try { body = pm.response.json(); } catch (e) { body = undefined; }",
+                  "pm.test('API-AC-101 | status is 406 Not Acceptable', () => pm.response.to.have.status(406));",
+                  "pm.test('API-AC-101 | error code is \"1204\" and message is \"User exists!\"', () => {",
+                  "  pm.expect(body.code).to.eql('1204');",
+                  "  pm.expect(body.message).to.eql('User exists!');",
+                  "});",
+                  "pm.test('API-AC-101 | no user identifier is exposed', () => pm.expect(body).to.not.have.any.keys('userID', 'userId', 'username'));",
+                  "pm.test('API-AC-101 | lifecycle userId and token are unchanged', () => {",
+                  "  pm.expect(pm.environment.get('userId')).to.eql(pm.variables.get('userIdBefore'));",
+                  "  pm.expect(pm.environment.get('authToken') === pm.variables.get('tokenBefore'), 'token unchanged').to.be.true;",
+                  "});",
+                  "pm.test('API-CT-002 | error code is a number (Swagger MessageModal)', () => pm.expect(typeof body.code, 'type of code').to.eql('number'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Negative - Generate Token wrong password",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/Account/v1/GenerateToken",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "Account",
+                "v1",
+                "GenerateToken"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userName\": \"{{username}}\",\n  \"password\": \"{{wrongPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Cases: API-AC-102"
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Prerequisite guard: skip (reported as not run) instead of sending a request with missing or stale data.",
+                  "if (!pm.environment.get('userId') || !pm.environment.get('userPassword')) { pm.execution.skipRequest(); }",
+                  "// Wrong password is request-scoped (pm.variables), so it can never overwrite the lifecycle credentials.",
+                  "pm.variables.set('wrongPassword', pm.environment.get('userPassword') + 'x');",
+                  "pm.variables.set('tokenBefore', pm.environment.get('authToken'));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let body;",
+                  "try { body = pm.response.json(); } catch (e) { body = undefined; }",
+                  "// Observed OBS-API-05 / D3: failure is reported in the body while HTTP stays 200.",
+                  "pm.test('API-AC-102 | status is 200 OK even though authentication fails', () => pm.response.to.have.status(200));",
+                  "pm.test('API-AC-102 | status is \"Failed\" with the failure message', () => {",
+                  "  pm.expect(body.status).to.eql('Failed');",
+                  "  pm.expect(body.result).to.eql('User authorization failed.');",
+                  "});",
+                  "pm.test('API-AC-102 | no token is issued', () => {",
+                  "  pm.expect(body.token).to.equal(null);",
+                  "  pm.expect(body.expires).to.equal(null);",
+                  "});",
+                  "pm.test('API-AC-102 | lifecycle token is unchanged', () => pm.expect(pm.environment.get('authToken') === pm.variables.get('tokenBefore'), 'token unchanged').to.be.true);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Negative - Get User no token",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/Account/v1/User/{{userId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "Account",
+                "v1",
+                "User",
+                "{{userId}}"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "Cases: API-AC-103"
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Prerequisite guard: skip (reported as not run) instead of sending a request with missing or stale data.",
+                  "if (!pm.environment.get('userId')) { pm.execution.skipRequest(); }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let body;",
+                  "try { body = pm.response.json(); } catch (e) { body = undefined; }",
+                  "// Observed contract OBS-API-07: 401 with code \"1200\" (a string, see D2) and no user data.",
+                  "pm.test('API-AC-103 | status is 401 Unauthorized', () => pm.response.to.have.status(401));",
+                  "pm.test('API-AC-103 | error code is \"1200\" and message is \"User not authorized!\"', () => {",
+                  "  pm.expect(body).to.be.an('object');",
+                  "  pm.expect(body.code).to.eql('1200');",
+                  "  pm.expect(body.message).to.eql('User not authorized!');",
+                  "});",
+                  "pm.test('API-AC-103 | no protected user data is exposed', () => {",
+                  "  pm.expect(body).to.not.have.any.keys('username', 'books', 'userId', 'userID');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Negative - Get User invalid token",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/Account/v1/User/{{userId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "Account",
+                "v1",
+                "User",
+                "{{userId}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "invalid.token.value",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Cases: API-AC-104"
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Prerequisite guard: skip (reported as not run) instead of sending a request with missing or stale data.",
+                  "if (!pm.environment.get('userId')) { pm.execution.skipRequest(); }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let body;",
+                  "try { body = pm.response.json(); } catch (e) { body = undefined; }",
+                  "// Observed contract OBS-API-07: 401 with code \"1200\" (a string, see D2) and no user data.",
+                  "pm.test('API-AC-104 | status is 401 Unauthorized', () => pm.response.to.have.status(401));",
+                  "pm.test('API-AC-104 | error code is \"1200\" and message is \"User not authorized!\"', () => {",
+                  "  pm.expect(body).to.be.an('object');",
+                  "  pm.expect(body.code).to.eql('1200');",
+                  "  pm.expect(body.message).to.eql('User not authorized!');",
+                  "});",
+                  "pm.test('API-AC-104 | no protected user data is exposed', () => {",
+                  "  pm.expect(body).to.not.have.any.keys('username', 'books', 'userId', 'userID');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Negative - Weak password",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/Account/v1/User",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "Account",
+                "v1",
+                "User"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userName\": \"{{username}}_weak\",\n  \"password\": \"abc\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Cases: API-AC-105"
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Prerequisite guard: skip (reported as not run) instead of sending a request with missing or stale data.",
+                  "if (!pm.environment.get('username')) { pm.execution.skipRequest(); }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let body;",
+                  "try { body = pm.response.json(); } catch (e) { body = undefined; }",
+                  "pm.test('API-AC-105 | status is 400 Bad Request', () => pm.response.to.have.status(400));",
+                  "pm.test('API-AC-105 | error code is \"1300\" and message states the password rules', () => {",
+                  "  pm.expect(body.code).to.eql('1300');",
+                  "  pm.expect(body.message).to.include('Password must be eight characters or longer');",
+                  "});",
+                  "// If the API ever accepts the weak password, report the orphan account name (not a secret) for manual cleanup.",
+                  "if (pm.response.code === 201) pm.test('API-AC-105 | ORPHAN ACCOUNT CREATED: ' + pm.environment.get('username') + '_weak', () => pm.expect.fail('weak-password user was created'));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "4 - Cleanup",
+      "item": [
+        {
+          "name": "Cleanup - Delete User",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/Account/v1/User/{{userId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "Account",
+                "v1",
+                "User",
+                "{{userId}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{authToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Cases: API-AC-006"
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Cleanup runs whenever this run created a user, even if earlier steps failed.",
+                  "if (!pm.environment.get('userId')) { pm.execution.skipRequest(); }",
+                  "else if (!pm.environment.get('authToken') && pm.environment.get('userPassword')) {",
+                  "  // Token missing (e.g. Generate Token failed): try once more so the owned account can still be deleted.",
+                  "  pm.sendRequest({",
+                  "    url: pm.environment.get('baseUrl') + '/Account/v1/GenerateToken', method: 'POST',",
+                  "    header: { 'Content-Type': 'application/json' },",
+                  "    body: { mode: 'raw', raw: JSON.stringify({ userName: pm.environment.get('username'), password: pm.environment.get('userPassword') }) },",
+                  "  }, (err, res) => {",
+                  "    const b = !err && res.code === 200 ? res.json() : {};",
+                  "    if (b.status === 'Success' && b.token) pm.environment.set('authToken', b.token);",
+                  "  });",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('API-AC-006 | status is 204 No Content', () => pm.response.to.have.status(204));",
+                  "pm.test('API-AC-006 | response body is empty', () => pm.expect(pm.response.text()).to.eql(''));",
+                  "// The password is no longer needed once deletion was attempted.",
+                  "pm.environment.unset('userPassword');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Cleanup - Verify user deleted",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/Account/v1/User/{{userId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "Account",
+                "v1",
+                "User",
+                "{{userId}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{authToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Cases: API-AC-007"
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Prerequisite guard: skip (reported as not run) instead of sending a request with missing or stale data.",
+                  "if (!pm.environment.get('userId') || !pm.environment.get('authToken')) { pm.execution.skipRequest(); }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let body;",
+                  "try { body = pm.response.json(); } catch (e) { body = undefined; }",
+                  "pm.test('API-AC-007 | status is 401 for the deleted user', () => pm.response.to.have.status(401));",
+                  "pm.test('API-AC-007 | error code is \"1207\" and message is \"User not found!\"', () => {",
+                  "  pm.expect(body.code).to.eql('1207');",
+                  "  pm.expect(body.message).to.eql('User not found!');",
+                  "});",
+                  "// End of lifecycle: clear every runtime value, secrets included.",
+                  "['username', 'userId', 'userPassword', 'authToken', 'selectedIsbn', 'selectedTitle'].forEach(k => pm.environment.unset(k));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

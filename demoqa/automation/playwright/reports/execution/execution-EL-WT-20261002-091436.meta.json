@@ -1,0 +1,18 @@
+{
+  "runId": "EL-WT-20261002-091436",
+  "purpose": "normal",
+  "timezone": "Asia/Manila",
+  "playwrightVersion": "1.63.0",
+  "workers": 2,
+  "projects": [
+    "chromium"
+  ],
+  "baseURL": "https://demoqa.com",
+  "retries": 1,
+  "command": "playwright test tests/web-tables.spec.ts --project=chromium",
+  "htmlReport": "reports/html/EL-WT-20261002-091436/index.html",
+  "evidenceDir": "reports/evidence/EL-WT-20261002-091436",
+  "startTime": "2026-10-02T01:14:36.940Z",
+  "wallClockMs": 46210,
+  "status": "failed"
+}

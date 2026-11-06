@@ -1,0 +1,22 @@
+
+# Playwright
+node_modules/
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+/playwright/.auth/
+
+# QA evidence: traces/screenshots can capture typed data; HTML report is regenerated each run
+/reports/html/
+/reports/evidence/
+
+# Secrets
+.env
+.env.*
+
+# Postman: only the collection and the empty environment template are versioned.
+# Never commit environments or exports that contain current values (passwords, tokens).
+/postman/*.postman_environment.json
+/postman/*local*
+/postman/*export*

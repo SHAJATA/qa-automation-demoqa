@@ -1,0 +1,18 @@
+{
+  "runId": "WI-20261002-093545",
+  "purpose": "normal",
+  "timezone": "Asia/Manila",
+  "playwrightVersion": "1.63.0",
+  "workers": 2,
+  "projects": [
+    "chromium"
+  ],
+  "baseURL": "https://demoqa.com",
+  "retries": 1,
+  "command": "playwright test tests/accordian.spec.ts tests/auto-complete.spec.ts tests/date-picker.spec.ts tests/slider.spec.ts tests/progress-bar.spec.ts tests/tabs.spec.ts tests/tool-tips.spec.ts tests/menu.spec.ts tests/select-menu.spec.ts --project=chromium",
+  "htmlReport": "reports/html/WI-20261002-093545/index.html",
+  "evidenceDir": "reports/evidence/WI-20261002-093545",
+  "startTime": "2026-10-02T01:35:46.759Z",
+  "wallClockMs": 129738,
+  "status": "failed"
+}
